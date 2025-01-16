@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folder Browser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        #fileList {
+            margin-top: 20px;
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        #fileList li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkmark {
+            color: #4CAF50;
+            margin-right: 10px;
+        }
+        
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <h1>Folder Browser</h1>
+    <button id="openFolder">Open Folder</button>
+    <div id="status"></div>
+    <ul id="fileList"></ul>
+
+    <script>
+        const openFolderButton = document.getElementById('openFolder');
+        const fileList = document.getElementById('fileList');
+        const status = document.getElementById('status');
+
+        async function checkFileReadable(handle) {
+            try {
+                // Try to get read permission
+                const permissionStatus = await handle.queryPermission({ mode: 'read' });
+                if (permissionStatus === 'granted') {
+                    return true;
+                }
+                // If not automatically granted, request it
+                const requestPermission = await handle.requestPermission({ mode: 'read' });
+                return requestPermission === 'granted';
+            } catch (error) {
+                console.error('Error checking file permissions:', error);
+                return false;
+            }
+        }
+
+        async function listFolderContents() {
+            try {
+                // Check if the File System Access API is supported
+                if (!('showDirectoryPicker' in window)) {
+                    throw new Error('File System Access API is not supported in this browser');
+                }
+
+                // Open the folder picker
+                const dirHandle = await window.showDirectoryPicker();
+                
+                // Clear the previous list
+                fileList.innerHTML = '';
+                status.textContent = '';
+                status.className = '';
+
+                // Iterate through the directory entries
+                for await (const entry of dirHandle.values()) {
+                    const li = document.createElement('li');
+                    const isReadable = await checkFileReadable(entry);
+                    
+                    li.innerHTML = `
+                        ${isReadable ? '<span class="checkmark">✓</span>' : ''}
+                        ${entry.name}
+                        ${entry.kind === 'directory' ? ' (folder)' : ''}
+                    `;
+                    
+                    fileList.appendChild(li);
+                }
+            } catch (error) {
+                console.error('Error accessing folder:', error);
+                status.textContent = `Error: ${error.message}`;
+                status.className = 'error';
+            }
+        }
+
+        openFolderButton.addEventListener('click', listFolderContents);
+    </script>
+</body>
+</html>
